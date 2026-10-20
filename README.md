@@ -8,7 +8,7 @@ Interactive, beginner-friendly explainers for the ideas behind modern AI. Each l
 
 | # | Lesson | Pages |
 |---|---|---|
-| 1 | **Attention Is All You Need** (Vaswani et al., 2017) | [Beginner picture book](attention-is-all-you-need/beginner.html) · [Live math simulation](attention-is-all-you-need/attention-engine.html) |
+| 1 | **Attention Is All You Need** (Vaswani et al., 2017) | [Blog post](attention-is-all-you-need/blog.html) · [Beginner picture book](attention-is-all-you-need/beginner.html) · [Live math simulation](attention-is-all-you-need/attention-engine.html) |
 
 More lessons coming soon.
 

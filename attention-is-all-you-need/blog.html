@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A plain-language walk through the 2017 Transformer paper, from why old translators struggled to how attention, layers and training fit together.">
+<title>Attention, Explained Plainly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a single reading column (~66ch), Fredoka headings from the series, Literata for long-form reading, figures break slightly wider. */
+:root{
+  --bg:#f7f6fb; --paper:#ffffff; --ink:#1f1d36; --muted:#5f5c7b; --line:#e3e0f0; --soft:#eeeafc; --cell:#f1eff8;
+  --accent:#5b3fd6; --q:#d63c74; --k:#0f8f86; --v:#c9800a;
+  --f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --f-read:"Literata",Georgia,"Times New Roman",serif;
+  --f-ui:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13121f; --paper:#1a1929; --ink:#e9e8f5; --muted:#a5a2c0; --line:#2f2c46; --soft:#28244b; --cell:#222035;
+  --accent:#a08bff; --q:#ff709d; --k:#38c9bd; --v:#ffbd4a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13121f; --paper:#1a1929; --ink:#e9e8f5; --muted:#a5a2c0; --line:#2f2c46; --soft:#28244b; --cell:#222035;
+  --accent:#a08bff; --q:#ff709d; --k:#38c9bd; --v:#ffbd4a; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:19px/1.75 var(--f-read);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 4rem}
+.col{max-width:68ch;margin:0 auto}
+.wide{max-width:780px;margin:2rem auto}
+.crumbs{font:600 14px var(--f-ui);padding-block:1.5rem 0;display:flex;gap:.5rem;flex-wrap:wrap;color:var(--muted)}
+.crumbs a{color:var(--accent);text-decoration:none}
+header.hero{padding-block:2rem 1.5rem;border-bottom:1px solid var(--line);margin-bottom:2rem}
+.kicker{font:600 14px var(--f-display);color:var(--accent);letter-spacing:.03em;margin:0 0 .6rem}
+h1{font:600 clamp(2.1rem,6vw,3.2rem)/1.08 var(--f-display);margin:0 0 1rem;letter-spacing:-.01em;text-wrap:balance}
+.dek{font-size:1.15em;color:var(--muted);margin:0 0 1.2rem;font-style:italic}
+.meta{font:14px var(--f-ui);color:var(--muted);display:flex;gap:1rem;flex-wrap:wrap}
+h2{font:600 clamp(1.5rem,3.5vw,1.9rem)/1.2 var(--f-display);margin:3rem 0 .8rem;text-wrap:balance;scroll-margin-top:1rem}
+h2 .n{color:var(--accent);margin-right:.4rem}
+h3{font:600 1.25rem/1.3 var(--f-display);margin:2rem 0 .5rem}
+p{margin:0 0 1.15rem}
+a{color:var(--accent)}
+strong{font-weight:600}
+em{font-style:italic}
+.toc{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.1rem 1.4rem;font:16px/1.7 var(--f-ui)}
+.toc b{font:600 15px var(--f-display);color:var(--muted);display:block;margin-bottom:.3rem}
+.toc ol{margin:0;padding-left:1.3rem;columns:2 16rem;column-gap:2rem}
+.toc a{text-decoration:none;color:var(--ink)}
+.toc a:hover{color:var(--accent)}
+.callout{background:var(--soft);border-radius:14px;padding:1rem 1.2rem;margin:1.5rem 0;font:17px/1.65 var(--f-ui)}
+.callout b{font:600 14px var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:.2rem}
+.callout p:last-child{margin-bottom:0}
+.formula{font:17px/1.6 var(--f-mono);background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;margin:1.4rem 0;overflow-x:auto;text-align:center}
+.formula small{display:block;font:14px var(--f-ui);color:var(--muted);margin-top:.4rem}
+code{font:.88em var(--f-mono);background:var(--cell);border-radius:5px;padding:.08em .35em}
+.q{color:var(--q);font-weight:600} .k{color:var(--k);font-weight:600} .v{color:var(--v);font-weight:600}
+figure{margin:2rem 0}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font:15px/1.5 var(--f-ui);color:var(--muted);margin-top:.6rem;text-align:center}
+.tbl{overflow-x:auto;margin:1.5rem 0}
+table{border-collapse:collapse;width:100%;font:16px/1.5 var(--f-ui);font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+th{font:600 14px var(--f-display);color:var(--muted)}
+tr.hl td{background:var(--soft);font-weight:700}
+td.r,th.r{text-align:right}
+ul.plain{padding-left:1.2rem;margin:0 0 1.2rem}
+ul.plain li{margin-bottom:.4rem}
+dl.gloss{display:grid;grid-template-columns:minmax(8rem,12rem) minmax(0,1fr);gap:.6rem 1.2rem;font:17px/1.6 var(--f-ui);margin:1rem 0}
+dl.gloss dt{font-weight:700}
+dl.gloss dd{margin:0;color:var(--ink)}
+.next{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;margin:1.5rem 0}
+.next a{display:block;border:2px solid var(--line);border-radius:16px;padding:1rem 1.1rem;text-decoration:none;color:var(--ink);background:var(--paper);font:16px/1.5 var(--f-ui)}
+.next a:hover,.next a:focus-visible{border-color:var(--accent);outline:none}
+.next a b{display:block;font:600 1.15rem var(--f-display);color:var(--accent);margin-bottom:.2rem}
+hr{border:0;border-top:1px solid var(--line);margin:3rem 0}
+footer{font:14px var(--f-ui);color:var(--muted)}
+@media (max-width:560px){body{font-size:18px}dl.gloss{grid-template-columns:minmax(0,1fr)}dl.gloss dd{margin-bottom:.6rem}}
+</style>
+</head>
+<body>
+<nav class="crumbs col" aria-label="Breadcrumb"><a href="../">Making AI Easy</a><span>/</span><a href="./">Lesson 1</a><span>/</span><span>Blog</span></nav>
+
+<header class="hero col">
+  <p class="kicker">Lesson 1 · The reading version</p>
+  <h1>Attention, Explained Plainly</h1>
+  <p class="dek">How one 2017 paper taught computers to read a whole sentence at once, and why almost every AI system you use today is built on it.</p>
+  <div class="meta"><span>By Karamvir Singh</span><span>About 20 minutes</span><span>Paper: Vaswani et al., NeurIPS 2017</span></div>
+</header>
+
+<main class="col">
+
+<nav class="toc" aria-label="Contents"><b>In this post</b><ol>
+<li><a href="#why">Why this paper matters</a></li>
+<li><a href="#problem">The problem with reading one word at a time</a></li>
+<li><a href="#numbers">How a computer reads a word</a></li>
+<li><a href="#attention">Attention, the big idea</a></li>
+<li><a href="#qkv">Question, label and content</a></li>
+<li><a href="#heads">Asking several questions at once</a></li>
+<li><a href="#order">Teaching it word order</a></li>
+<li><a href="#machine">Putting the machine together</a></li>
+<li><a href="#writing">How it writes a translation</a></li>
+<li><a href="#training">How it learns</a></li>
+<li><a href="#results">What happened when they tested it</a></li>
+<li><a href="#legacy">Why it changed everything</a></li>
+<li><a href="#glossary">Glossary</a></li>
+</ol></nav>
+
+<h2 id="why"><span class="n">1</span>Why this paper matters</h2>
+<p>In June 2017, eight researchers at Google published a paper with a confident title: <em>Attention Is All You Need</em>. It described a new design for a neural network, which they called the <strong>Transformer</strong>. Their goal was modest on paper. They wanted to translate sentences between English, German and French faster and more accurately than the systems of the time.</p>
+<p>They succeeded, but that turned out to be the least important part. The design was so simple and so well suited to modern computer chips that researchers began using it for everything. Within a few years it powered Google Search's understanding of queries, then the GPT models, then the chat assistants many people now use every day. When you hear "large language model," you are hearing about a scaled-up descendant of this paper. The "T" in ChatGPT stands for Transformer.</p>
+<p>This post walks through the paper from the ground up. You don't need a maths background. Each idea starts with an everyday picture and only then gets its proper name. If you want to click through the same ideas, the <a href="beginner.html">picture-book version</a> and the <a href="attention-engine.html">live simulation</a> cover the same ground.</p>
+
+<h2 id="problem"><span class="n">2</span>The problem with reading one word at a time</h2>
+<p>Before 2017, the best translation systems were built from <strong>recurrent neural networks</strong>, usually a kind called an LSTM. A recurrent network reads a sentence the way you might read with your finger on the page: one word, then the next, then the next. As it goes, it keeps a running summary of everything it has read so far, a bit like a mental note.</p>
+<p>Picture a line of people passing a note. The first person reads the word "The," writes a summary, and hands it on. The second person reads "animal," updates the note, and hands it on. By the time the note reaches the eleventh person, it has been rewritten ten times. Details from the beginning have faded or been squeezed out to make room for newer information.</p>
+<p>This caused two problems. The first was <strong>memory</strong>. When a word late in the sentence depended on a word near the start, the connection had to survive a long chain of rewrites, and it often didn't. The second was <strong>speed</strong>. Step eleven cannot begin until step ten has finished, so the work cannot be shared out across the thousands of small processors inside a modern graphics chip. Training was slow, and that limited how big these models could get.</p>
+<div class="callout"><b>The question the paper asked</b><p>What if every word could look directly at every other word, all at the same moment, with no chain of notes in between?</p></div>
+
+<h2 id="numbers"><span class="n">3</span>How a computer reads a word</h2>
+<p>Computers can't work with words directly, only with numbers. So the first job of any language model is to turn each word into a list of numbers. This list is called an <strong>embedding</strong>. In the paper, every word becomes a list of 512 numbers.</p>
+<p>A helpful way to imagine an embedding is as a character card in a game. A card might score a word on qualities like "is it a living thing," "is it large," "is it a feeling" and "is it a place." "Cat" and "kitten" would have very similar cards. "Elephant" would share the living-thing score but differ on size. "Street" would look completely different.</p>
+<p>The real numbers don't come with tidy labels like these. The model invents its own qualities during training, spreading meaning across all 512 numbers in ways people can only partly interpret. The useful property survives, though: words with similar meanings end up with similar lists. If you could squeeze those 512 numbers down to two and plot them on a page, related words would cluster together.</p>
+<p>Before the paper's model reads a sentence, it breaks words into common pieces, a technique called byte-pair encoding, so that rare words can be built from familiar parts. The English and German vocabulary in the paper had about 37,000 of these pieces, each with its own embedding.</p>
+
+<h2 id="attention"><span class="n">4</span>Attention, the big idea</h2>
+<p>Read this sentence:</p>
+<p style="text-align:center;font-size:1.1em"><em>The animal didn't cross the street because <span class="q">it</span> was too tired.</em></p>
+<p>What does "it" mean? You knew instantly: the animal. Streets don't get tired. Now change one word:</p>
+<p style="text-align:center;font-size:1.1em"><em>The animal didn't cross the street because <span class="q">it</span> was too wide.</em></p>
+<p>Now "it" means the street. The word "it" hasn't changed, but its meaning depends entirely on the other words around it. To understand a word, you have to look at its context.</p>
+<p><strong>Attention</strong> is the mechanism that lets a model do this. When the model processes "it," it looks at every other word in the sentence and decides how much each one matters for understanding "it." Those decisions are expressed as shares that add up to 100 percent. In the "tired" sentence, a trained model might give about half its attention to "animal," a smaller share to "tired," and very little to the rest.</p>
+<figure class="wide">
+<svg viewBox="0 0 760 210" role="img" aria-label="The word it sends thick lines to animal and tired, and thin lines to the other words">
+  <g style="font:600 17px var(--f-ui)">
+  <path d="M480 150 Q300 20 130 150" style="fill:none;stroke:var(--q);stroke-width:10;stroke-linecap:round;opacity:.9"/>
+  <path d="M480 150 Q600 60 700 150" style="fill:none;stroke:var(--q);stroke-width:4;stroke-linecap:round;opacity:.6"/>
+  <path d="M480 150 Q400 90 330 150" style="fill:none;stroke:var(--q);stroke-width:2;stroke-linecap:round;opacity:.35"/>
+  <path d="M480 150 Q440 110 400 150" style="fill:none;stroke:var(--q);stroke-width:1.5;stroke-linecap:round;opacity:.3"/>
+  <path d="M480 150 Q540 110 580 150" style="fill:none;stroke:var(--q);stroke-width:1.5;stroke-linecap:round;opacity:.3"/>
+  <text x="130" y="76" text-anchor="middle" style="fill:var(--ink);font-size:15px">52%</text>
+  <text x="640" y="82" text-anchor="middle" style="fill:var(--ink);font-size:15px">14%</text>
+  <text x="60" y="180" style="fill:var(--ink)">The</text><text x="130" y="180" text-anchor="middle" style="fill:var(--ink)">animal</text>
+  <text x="225" y="180" text-anchor="middle" style="fill:var(--muted)">didn't</text><text x="330" y="180" text-anchor="middle" style="fill:var(--muted)">street</text>
+  <text x="400" y="180" text-anchor="middle" style="fill:var(--muted)">because</text>
+  <rect x="456" y="160" width="48" height="30" rx="8" style="fill:var(--q)"/><text x="480" y="181" text-anchor="middle" style="fill:#fff">it</text>
+  <text x="580" y="180" text-anchor="middle" style="fill:var(--muted)">was too</text><text x="700" y="180" text-anchor="middle" style="fill:var(--ink)">tired</text>
+  </g>
+</svg>
+<figcaption>Line thickness shows how much attention “it” pays to each word. The percentages are illustrative.</figcaption>
+</figure>
+<p>Here is the crucial part. The model then builds a new version of "it" by mixing in information from the words it paid attention to, in proportion to those shares. After this step, the model's representation of "it" contains a good deal of "animal." The word has absorbed its context.</p>
+<p>And this happens for every word at the same time. "Animal" looks at the whole sentence, "street" looks at the whole sentence, "tired" looks at the whole sentence, all in one step. There's no chain of notes. The connection between the first word and the last is direct, no matter how far apart they are. Because the attention happens within a single sentence, the paper calls it <strong>self-attention</strong>.</p>
+
+<h2 id="qkv"><span class="n">5</span>Question, label and content</h2>
+<p>How does a word actually decide where to look? The paper's answer is easiest to understand through something familiar: searching for a video.</p>
+<p>You type a question into the search box, say "how to bake bread." Every video on the site has a title. The site compares your question with each title and gives each one a match score. "Bread baking for beginners" scores high. "Funny cat videos" scores near zero. Then you watch the content of the best matches.</p>
+<p>Attention works the same way, using three lists of numbers made from each word's embedding:</p>
+<ul class="plain">
+<li>The <span class="q">query</span> is the question a word is asking. For "it," something like: which noun could get tired?</li>
+<li>The <span class="k">key</span> is the label a word offers to others. "Animal" might be labelled: a living thing, a noun.</li>
+<li>The <span class="v">value</span> is the content a word hands over if someone pays attention to it, its actual meaning.</li>
+</ul>
+<p>Each word's query, key and value are made by multiplying its embedding by three grids of numbers, called weight matrices, that the model learns during training. In the paper each of these is a list of 64 numbers.</p>
+<p>To work out the attention for "it," the model compares the query of "it" with the key of every word. The comparison is a <strong>dot product</strong>: multiply the two lists number by number and add up the results. Similar lists give a large total, which means a strong match.</p>
+<p>Those raw match scores are then turned into shares that add up to 100 percent, using a function called <strong>softmax</strong>. Softmax gives most of the share to the strongest matches and very little to weak ones. Finally, the model takes a weighted blend of every word's value, using those shares. That blend is the new, context-aware version of "it."</p>
+<p>The paper packs all of this into one line:</p>
+<div class="formula">Attention(<span class="q">Q</span>, <span class="k">K</span>, <span class="v">V</span>) = softmax( <span class="q">Q</span><span class="k">K</span><sup>T</sup> ⁄ √d<sub>k</sub> ) · <span class="v">V</span><small>Compare every query with every key, scale, turn into shares, then blend the values.</small></div>
+<p>There is one small detail worth understanding, the division by √d<sub>k</sub>. Here d<sub>k</sub> is the length of the query and key lists, 64, so the model divides every score by 8. Why? When you add up 64 products, the totals can get large. Large scores push softmax to an extreme where one word gets nearly 100 percent and every other word gets nearly zero. In that state the model receives almost no signal about how to improve, and learning stalls. Dividing by the square root of the list length keeps the scores in a comfortable range, however long the lists are. The paper's authors call their version <strong>scaled dot-product attention</strong> because of this step.</p>
+<div class="callout"><b>Why dot products?</b><p>Earlier attention systems compared queries and keys with a small neural network, called additive attention. The dot product works about as well and is much faster, because modern chips are built to multiply big grids of numbers. Choosing it was part of what made the Transformer so quick to train.</p></div>
+
+<h2 id="heads"><span class="n">6</span>Asking several questions at once</h2>
+<p>A single question can't capture everything a word needs to know. For "it," you might want to know who it refers to, how it is feeling, and what it did. These are different questions that point to different words.</p>
+<p>So the Transformer runs several attention calculations side by side. Each one is called a <strong>head</strong>, and each head has its own query, key and value weights, so it learns to ask its own kind of question. One head might learn to link pronouns to the nouns they refer to. Another might learn to connect verbs with their objects. The paper's appendix shows real examples of trained heads doing exactly these kinds of jobs.</p>
+<p>The paper uses 8 heads in every attention layer. Each head works with lists of 64 numbers instead of the full 512, so running 8 small heads costs about the same as running one big one. When all the heads have finished, their results are placed side by side and mixed together by one more learned grid of numbers. The paper calls this <strong>multi-head attention</strong>.</p>
+<p>Did the extra heads matter? The authors tested it. With only one head, translation quality dropped noticeably. With far too many tiny heads, it dropped again. Eight was a good balance for their model size.</p>
+
+<h2 id="order"><span class="n">7</span>Teaching it word order</h2>
+<p>Attention has a surprising blind spot. Because every word looks at every other word in the same way, the calculation has no idea which word came first. "Dog bites man" and "man bites dog" contain the same three words, so to plain attention they look like the same bag of words. For language, that is a serious problem.</p>
+<p>The fix is called <strong>positional encoding</strong>. Before a sentence enters the model, every word gets a second list of 512 numbers that describes its seat in the sentence, and this list is added to the word's embedding. Now "dog" in position 1 and "dog" in position 3 have different starting numbers, and the model can tell them apart.</p>
+<p>The paper builds these seat numbers from sine and cosine waves. Imagine a row of clocks, each ticking at a different speed. The fast clocks change a lot from one position to the next, which helps tell neighbouring words apart. The slow clocks barely move across a sentence, which helps tell the beginning from the end. Reading every clock at a given position gives that position a unique fingerprint.</p>
+<div class="formula">PE(pos, 2i) = sin( pos ⁄ 10000<sup>2i/512</sup> ) &nbsp;&nbsp; PE(pos, 2i+1) = cos( pos ⁄ 10000<sup>2i/512</sup> )<small>Even-numbered slots use sine, odd-numbered slots use cosine, each pair at its own speed.</small></div>
+<p>The authors chose waves because the pattern for "five words later" is always the same simple shift, whichever position you start from. They hoped this would make it easy for the model to reason about relative distance. They also tried simply letting the model learn its own position numbers. Both approaches scored almost exactly the same, and they kept the waves because they might work for sentences longer than any seen during training.</p>
+
+<h2 id="machine"><span class="n">8</span>Putting the machine together</h2>
+<p>With attention and positional encoding in hand, we can assemble the full Transformer. Like earlier translation systems, it has two halves. The <strong>encoder</strong> reads the source sentence, say the French <em>je suis étudiant</em>, and produces a rich understanding of it. The <strong>decoder</strong> writes the translation, <em>i am a student</em>, one word at a time.</p>
+<figure class="wide">
+<svg viewBox="0 0 760 330" role="img" aria-label="Diagram of encoder and decoder stacks connected by an arrow carrying keys and values">
+  <g style="font:600 15px var(--f-ui)">
+  <rect x="40" y="60" width="290" height="190" rx="18" style="fill:var(--paper);stroke:var(--line);stroke-width:2;stroke-dasharray:6 5"/>
+  <text x="185" y="44" text-anchor="middle" style="fill:var(--muted);font:600 14px var(--f-display);letter-spacing:.08em">ENCODER × 6</text>
+  <rect x="70" y="84" width="230" height="56" rx="12" style="fill:var(--soft);stroke:var(--accent)"/><text x="185" y="118" text-anchor="middle" style="fill:var(--ink)">Thinking box (feed-forward)</text>
+  <rect x="70" y="164" width="230" height="56" rx="12" style="fill:var(--soft);stroke:var(--q)"/><text x="185" y="198" text-anchor="middle" style="fill:var(--ink)">Self-attention, 8 heads</text>
+  <text x="185" y="292" text-anchor="middle" style="fill:var(--ink)">je suis étudiant</text>
+  <line x1="185" y1="270" x2="185" y2="254" style="stroke:var(--muted);stroke-width:2"/>
+  <rect x="430" y="20" width="290" height="270" rx="18" style="fill:var(--paper);stroke:var(--line);stroke-width:2;stroke-dasharray:6 5"/>
+  <text x="575" y="312" text-anchor="middle" style="fill:var(--muted);font:600 14px var(--f-display);letter-spacing:.08em">DECODER × 6</text>
+  <rect x="460" y="40" width="230" height="56" rx="12" style="fill:var(--soft);stroke:var(--accent)"/><text x="575" y="74" text-anchor="middle" style="fill:var(--ink)">Thinking box (feed-forward)</text>
+  <rect x="460" y="120" width="230" height="56" rx="12" style="fill:var(--soft);stroke:var(--k)"/><text x="575" y="154" text-anchor="middle" style="fill:var(--ink)">Cross-attention</text>
+  <rect x="460" y="200" width="230" height="56" rx="12" style="fill:var(--soft);stroke:var(--q)"/><text x="575" y="234" text-anchor="middle" style="fill:var(--ink)">Masked self-attention</text>
+  <path d="M330 120 C380 120 400 148 458 148" style="fill:none;stroke:var(--k);stroke-width:3"/><path d="M450 141 L460 148 L450 155" style="fill:none;stroke:var(--k);stroke-width:3"/>
+  <text x="392" y="104" text-anchor="middle" style="fill:var(--k);font-size:13px">keys and values</text>
+  </g>
+</svg>
+<figcaption>The encoder reads the French sentence; the decoder writes English and checks back with the encoder through cross-attention.</figcaption>
+</figure>
+<h3>Inside one encoder layer</h3>
+<p>Each encoder layer has two parts. First comes multi-head self-attention, where every word gathers information from every other word. Then comes a small <strong>feed-forward network</strong>, which you can think of as a thinking box. Each word goes through the thinking box on its own, and it updates the word's numbers using what attention just gathered. In the paper the thinking box expands each word's 512 numbers to 2,048, applies a simple rule that zeroes out negative values, and shrinks them back to 512.</p>
+<p>Two small additions keep this stable. Around each part there is a <strong>residual connection</strong>, a shortcut that adds the part's input back onto its output. That means each layer only has to learn an improvement rather than rebuild everything from scratch, which makes deep stacks much easier to train. After each shortcut comes <strong>layer normalization</strong>, which rescales each word's numbers so they stay in a sensible range.</p>
+<h3>Stacking the layers</h3>
+<p>The encoder repeats this layer six times. Each layer reads the output of the one below and adds more understanding. You can imagine "it" becoming richer as it rises: first it is just a pronoun, then a pronoun pointing backwards, then probably the animal, then the tired animal that didn't cross the road. The real layers store this as numbers rather than sentences, but the intuition of gradual refinement is right. The layers share the same design but each has its own learned numbers.</p>
+
+<h2 id="writing"><span class="n">9</span>How it writes a translation</h2>
+<p>The decoder is also six layers deep, and each of its layers has three parts instead of two.</p>
+<p>The first is <strong>masked self-attention</strong>. The decoder writes one word at a time, so when it is choosing the third English word, it must not be able to see the fourth. During training the model is shown the whole correct translation at once, which would make cheating easy. To prevent it, the model hides every future word by setting its match score to minus infinity before softmax. After softmax, those hidden words get a share of exactly zero. Each word can only look at itself and the words before it.</p>
+<p>The second part is <strong>cross-attention</strong>, the bridge between the two halves. Here the questions come from the decoder, the English being written, while the labels and content come from the encoder's final understanding of the French. This is how the decoder checks back with the source sentence. When it is about to write "student," it pays most of its attention to "étudiant." Older systems needed a separate alignment step to match words across languages; here the model learns those links on its own.</p>
+<p>The third part is the same thinking box as in the encoder, again with shortcuts and normalization around each part.</p>
+<p>At the very top, the decoder's final numbers go through one more step that gives a score to every word in the vocabulary. Softmax turns those scores into probabilities. The model picks a likely word, writes it down, feeds it back into the decoder as the newest input, and repeats. When it produces a special end-of-sentence marker, it stops.</p>
+<p>In practice the paper didn't just take the single most likely word each time. It used <strong>beam search</strong>, which keeps the four most promising partial translations at every step and picks the best complete one at the end. This avoids getting stuck after one early choice that looked good but led somewhere awkward.</p>
+
+<h2 id="training"><span class="n">10</span>How it learns</h2>
+<p>At the start of training, every number in the model is random, so its translations are nonsense. Training is a loop. The model reads a sentence pair, predicts each next word, and measures how far its predictions were from the correct words. That measure of error is called the <strong>loss</strong>. The model then nudges every one of its numbers a tiny amount in the direction that would have reduced the loss, a process called backpropagation. Then it does the same with the next batch of sentences, millions of times over.</p>
+<p>The authors trained on standard translation datasets: about 4.5 million English–German sentence pairs and 36 million English–French sentence pairs. They used one machine with eight graphics chips. The smaller "base" model trained for about 12 hours, and the "big" model for three and a half days.</p>
+<p>A few practical choices helped. The <strong>learning rate</strong>, which controls how large each nudge is, started small and grew for the first 4,000 steps, then slowly shrank. Starting gently stops the random early model from making wild changes. They also used <strong>dropout</strong>, which randomly switches off a tenth of the signals during training so the model can't rely too heavily on any one path. And they used <strong>label smoothing</strong>, which tells the model the correct word is 90 percent right rather than 100 percent, so it learns to stay slightly humble. That made one measure of confidence look worse, but it made the translations better.</p>
+
+<h2 id="results"><span class="n">11</span>What happened when they tested it</h2>
+<p>Translation quality is usually measured with a score called <strong>BLEU</strong>, which compares a machine's output with professional human translations. Higher is better, and gains of even one point are considered significant. Here is how the Transformer did on the English-to-German test, compared with the strongest earlier systems.</p>
+<div class="tbl"><table>
+<thead><tr><th>System</th><th class="r">BLEU</th><th class="r">Training cost (operations)</th></tr></thead>
+<tbody>
+<tr><td>GNMT + RL (Google's previous system)</td><td class="r">24.6</td><td class="r">2.3 × 10<sup>19</sup></td></tr>
+<tr><td>ConvS2S (Facebook)</td><td class="r">25.16</td><td class="r">9.6 × 10<sup>18</sup></td></tr>
+<tr><td>Mixture of experts</td><td class="r">26.03</td><td class="r">2.0 × 10<sup>19</sup></td></tr>
+<tr><td>ConvS2S ensemble (several models combined)</td><td class="r">26.36</td><td class="r">7.7 × 10<sup>19</sup></td></tr>
+<tr class="hl"><td>Transformer, base</td><td class="r">27.3</td><td class="r">3.3 × 10<sup>18</sup></td></tr>
+<tr class="hl"><td>Transformer, big</td><td class="r">28.4</td><td class="r">2.3 × 10<sup>19</sup></td></tr>
+</tbody></table></div>
+<p>Even the small Transformer beat every earlier system, including combinations of several models, while using a fraction of the computing power. The big model set a new record by more than two points. On English-to-French it also set a new record for a single model. The authors then tried it on a different task, analysing the grammatical structure of English sentences, and with almost no adjustments it matched or beat most specialised systems.</p>
+<p>The authors also ran careful experiments, removing or changing one piece at a time to see what mattered. Bigger models did better. Removing dropout made results worse. A single attention head was clearly worse than eight. And, as mentioned, learned position numbers and sine waves performed almost identically.</p>
+
+<h2 id="legacy"><span class="n">12</span>Why it changed everything</h2>
+<p>The real breakthrough was speed. A recurrent network has to take one step per word. A self-attention layer handles every word in one step, so the work can be spread across all the processors in a chip at once. That made it practical to train far larger models on far more text than before, and larger models trained on more text kept getting better.</p>
+<p>Researchers soon realised they could use each half of the Transformer on its own:</p>
+<ul class="plain">
+<li><strong>Just the reading half</strong> became BERT in 2018, which helped search engines understand what people mean.</li>
+<li><strong>Just the writing half</strong>, with its no-peeking rule, became the GPT family. Scaled up enormously, this is the design behind today's chat assistants, including ChatGPT, Claude and Gemini.</li>
+<li><strong>Both halves together</strong> live on in models like T5 and in modern translation tools.</li>
+<li><strong>Beyond words</strong>, the same attention idea now reads images, speech, music and even protein structures.</li>
+</ul>
+<p>The design does have a cost. Because every word compares itself with every other word, doubling the length of the input roughly quadruples the work. That is fine for sentences but expensive for whole books, and a great deal of research since 2017 has gone into making attention cheaper for long inputs. Modern models also tweak many details: different position schemes, normalization placed before each part instead of after, and more efficient thinking boxes. The core idea, every word deciding what to pay attention to, is unchanged.</p>
+<div class="callout"><b>The one-paragraph version</b><p>The Transformer replaced step-by-step recurrent networks with self-attention, where every word works out how relevant every other word is, in a single parallel step. It adds positional encodings for word order, runs several attention heads at once, and stacks six layers in an encoder and a decoder. That made training much faster, set new translation records, and became the foundation for BERT, GPT and today's large language models.</p></div>
+
+<h2 id="glossary"><span class="n">13</span>Glossary</h2>
+<dl class="gloss">
+<dt>Attention</dt><dd>Deciding how much to focus on each other word, then mixing in their information by those shares.</dd>
+<dt>Self-attention</dt><dd>Attention where the words being looked at come from the same sentence.</dd>
+<dt>Cross-attention</dt><dd>Attention where the decoder's questions look at the encoder's words.</dd>
+<dt>Embedding</dt><dd>The list of numbers that represents a word. 512 numbers in the paper.</dd>
+<dt>Query, key, value</dt><dd>The question a word asks, the label it offers, and the content it hands over.</dd>
+<dt>Dot product</dt><dd>Multiply two lists number by number and add up the results; a quick similarity score.</dd>
+<dt>Softmax</dt><dd>Turns any set of scores into positive shares that add up to 100 percent.</dd>
+<dt>Head</dt><dd>One independent attention calculation. The paper uses 8 per layer.</dd>
+<dt>Positional encoding</dt><dd>A wave-based fingerprint added to each word so the model knows word order.</dd>
+<dt>Feed-forward network</dt><dd>The small "thinking box" each word passes through after attention.</dd>
+<dt>Residual connection</dt><dd>A shortcut that adds a layer's input to its output, making deep models easier to train.</dd>
+<dt>Layer normalization</dt><dd>Rescaling each word's numbers to keep them in a stable range.</dd>
+<dt>Encoder and decoder</dt><dd>The half that reads the input and the half that writes the output.</dd>
+<dt>Masking</dt><dd>Hiding future words from the decoder so it cannot peek at the answer.</dd>
+<dt>Loss</dt><dd>A number measuring how wrong the model's predictions were.</dd>
+<dt>BLEU</dt><dd>A translation quality score that compares output with human translations.</dd>
+</dl>
+
+<hr>
+<h2 style="margin-top:0">Keep going</h2>
+<div class="next">
+  <a href="beginner.html"><b>Transformers From Zero</b>The same story as a clickable picture book, with small experiments in every scene.</a>
+  <a href="attention-engine.html"><b>The Attention Engine</b>Watch a tiny Transformer compute every step live, with notes for researchers.</a>
+</div>
+<p style="font:16px/1.6 var(--f-ui)">Further reading: the original paper, <a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need (arXiv:1706.03762)</a>, and Jay Alammar's <a href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a>, a classic visual walk-through.</p>
+<footer>Written by Karamvir Singh for <a href="../">Making AI Easy</a>. Attention percentages in the figures are illustrative; benchmark figures come from Table 2 of the paper.</footer>
+</main>
+</body>
+</html>
