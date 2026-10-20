@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive, beginner-friendly explainers for the ideas behind modern AI.">
+<title>Making AI Easy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f4fb;--panel:#fff;--ink:#1d1b3a;--muted:#5e5b7a;--line:#e1def0;--accent:#5b3fd6;--soft:#ebe7fc}
+@media (prefers-color-scheme:dark){:root{--bg:#13121f;--panel:#1c1a2c;--ink:#ecebf7;--muted:#a6a3c2;--line:#302d48;--accent:#9d86ff;--soft:#2a2550;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Nunito Sans","Segoe UI",system-ui,sans-serif;padding:3rem max(16px,env(safe-area-inset-left,0px)) 3rem max(16px,env(safe-area-inset-right,0px))}
+main{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem}
+h1{font:600 clamp(2.2rem,6vw,3.4rem)/1.05 "Fredoka",system-ui,sans-serif;margin:0}
+.lede{margin:0;max-width:60ch;color:var(--muted);font-size:1.1rem}
+h2{font:600 1.1rem "Fredoka",system-ui,sans-serif;color:var(--muted);margin:1rem 0 0}
+.list{display:flex;flex-direction:column;gap:.8rem}
+a.lesson{display:grid;grid-template-columns:3.2rem minmax(0,1fr);gap:1rem;align-items:center;background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:1.1rem 1.2rem;color:inherit;text-decoration:none}
+a.lesson:hover,a.lesson:focus-visible{border-color:var(--accent);outline:none}
+.n{width:3.2rem;height:3.2rem;border-radius:14px;background:var(--accent);color:#fff;display:grid;place-items:center;font:600 1.4rem "Fredoka",system-ui,sans-serif}
+.lesson h3{margin:0;font:600 1.3rem/1.2 "Fredoka",system-ui,sans-serif}
+.lesson p{margin:.2rem 0 0;color:var(--muted)}
+.soon{border:2px dashed var(--line);border-radius:18px;padding:1rem 1.2rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Making AI Easy</h1>
+  <p class="lede">The big ideas behind modern AI, explained with pictures, analogies and things you can click. Each lesson starts from zero and ends with the real math.</p>
+  <h2>Lessons</h2>
+  <div class="list">
+    <a class="lesson" href="attention-is-all-you-need/"><span class="n">1</span><span><h3>Attention Is All You Need</h3><p>The 2017 paper behind ChatGPT, Claude and Gemini. A no-math picture book plus a live simulation of the Transformer.</p></span></a>
+    <div class="soon">More lessons coming soon.</div>
+  </div>
+</main>
+</body>
+</html>

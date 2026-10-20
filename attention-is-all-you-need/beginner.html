@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A beginner picture-book walkthrough of the Transformer paper, Attention Is All You Need.">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Transformers From Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a picture book. One idea per scene, big friendly visual in the middle, plain words above, optional "peek" below. Pink = question, teal = label, amber = content. */
+:root{
+  --bg:#f5f4fb; --panel:#ffffff; --ink:#1d1b3a; --muted:#5e5b7a; --line:#e1def0; --cell:#efedf8; --soft:#ebe7fc;
+  --q:#e0427a; --k:#11998f; --v:#e6950f; --accent:#5b3fd6; --on:#ffffff; --car:#7d8aa6;
+  --f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13121f; --panel:#1c1a2c; --ink:#ecebf7; --muted:#a6a3c2; --line:#302d48; --cell:#252339; --soft:#2a2550;
+  --q:#ff6f9c; --k:#35c8bd; --v:#ffbd4a; --accent:#9d86ff; --on:#ffffff; --car:#8f9bb8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13121f; --panel:#1c1a2c; --ink:#ecebf7; --muted:#a6a3c2; --line:#302d48; --cell:#252339; --soft:#2a2550;
+  --q:#ff6f9c; --k:#35c8bd; --v:#ffbd4a; --accent:#9d86ff; --on:#ffffff; --car:#8f9bb8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:1.5rem 3rem}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
+.brand{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap}
+.brand b{font:600 20px var(--f-display);color:var(--accent)}
+.brand span{font-size:14px;color:var(--muted)}
+.prog{display:grid;grid-template-columns:repeat(11,1fr);gap:5px}
+.prog button{height:10px;border-radius:99px;border:0;background:var(--line);cursor:pointer;padding:0}
+.prog button.done{background:color-mix(in oklab,var(--accent) 45%,var(--line))}
+.prog button.on{background:var(--accent)}
+.scene{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:clamp(1.1rem,3vw,2rem);display:flex;flex-direction:column;gap:1rem;min-width:0}
+.kick{font:600 14px var(--f-display);color:var(--accent);letter-spacing:.03em}
+h1{font:600 clamp(1.7rem,4.5vw,2.5rem)/1.15 var(--f-display);margin:0;text-wrap:balance}
+.say{font-size:clamp(17px,2.2vw,19px);max-width:62ch;margin:0;min-height:3.3em}
+.term{display:flex;gap:.6rem;align-items:baseline;background:var(--soft);border-radius:12px;padding:.55rem .9rem;font-size:15px;align-self:flex-start;max-width:100%}
+.term b{font:600 13px var(--f-display);color:var(--accent);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.viz{min-height:300px;display:flex;flex-direction:column;gap:1rem;justify-content:center;min-width:0}
+.viz>*{animation:pop .45s ease both}
+@keyframes pop{from{opacity:.2;transform:translateY(8px)}to{opacity:1;transform:none}}
+.nav{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+button{font:600 15px var(--f-body);border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:.55rem 1rem;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--on);padding:.7rem 1.6rem;font-size:17px;margin-left:auto}
+button.pick{padding:.35rem .8rem;font-size:15px}
+button.pick.on{background:var(--soft);border-color:var(--accent)}
+.stepnote{font-size:14px;color:var(--muted)}
+details.peek{border:1px dashed var(--line);border-radius:14px;padding:.6rem .9rem;font-size:15px}
+details.peek summary{cursor:pointer;font:600 15px var(--f-display);color:var(--muted)}
+details.peek p{margin:.5rem 0 0;max-width:70ch}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.center{justify-content:center}
+.pill{font:600 18px var(--f-body);border-radius:12px;padding:.3rem .75rem;background:var(--cell);border:1.5px solid var(--line)}
+.pill.q{background:var(--q);border-color:var(--q);color:var(--on)}
+.pill.fr{background:color-mix(in oklab,var(--k) 20%,var(--cell));border-color:color-mix(in oklab,var(--k) 50%,var(--line))}
+.pill.hot{outline:3px solid var(--k);outline-offset:2px}
+.pill.ghost{color:var(--muted);border-style:dashed;background:transparent}
+.pill.new{background:var(--accent);border-color:var(--accent);color:var(--on)}
+.arrowtxt{font:600 26px var(--f-display);color:var(--muted)}
+.cap{font-size:14.5px;color:var(--muted);margin:0;text-align:center}
+.svgbox{width:100%;max-width:680px;height:auto;display:block;margin:0 auto}
+.card{border:1.5px solid var(--line);border-radius:16px;padding:1rem 1.1rem;background:var(--panel);min-width:0}
+.card h3{margin:0 0 .6rem;font:600 18px var(--f-display)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem}
+.feat{display:grid;grid-template-columns:7.5rem minmax(0,1fr) 2.6rem;gap:.6rem;align-items:center;font-size:15px;margin:.3rem 0}
+.track{height:14px;border-radius:99px;background:var(--cell);overflow:hidden}
+.fill{height:100%;border-radius:99px;background:var(--accent);transition:width .5s ease}
+.num{font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+.map{position:relative;width:100%;max-width:560px;aspect-ratio:7/5;margin:0 auto;background:var(--cell);border-radius:18px;border:1.5px solid var(--line)}
+.dot{position:absolute;transform:translate(-50%,-50%);font:600 14px var(--f-body);background:var(--panel);border:1.5px solid var(--line);border-radius:99px;padding:.15rem .55rem;cursor:pointer;color:var(--ink)}
+.dot.on{background:var(--accent);color:var(--on);border-color:var(--accent)}
+.dot.near{border-color:var(--accent);background:var(--soft)}
+.strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;width:100%;max-width:300px}
+.strip span{height:26px;border-radius:3px}
+.bag{border:2px dashed var(--muted);border-radius:22px;padding:1rem 1.2rem;text-align:center}
+.beamwrap{position:relative;padding-top:150px;padding-bottom:.5rem}
+.beamwrap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.sent{display:flex;flex-wrap:wrap;gap:10px 8px;justify-content:center;font-size:clamp(16px,2.6vw,21px)}
+.wd{padding:.2rem .5rem;border-radius:9px;background:var(--cell);font-weight:700;position:relative}
+.wd.it{background:var(--q);color:var(--on)}
+.wd.tgt{outline:2.5px solid var(--k);outline-offset:1px}
+.search{border:2.5px solid var(--q);border-radius:99px;padding:.55rem 1.1rem;font-weight:700;display:flex;gap:.6rem;align-items:center;max-width:420px;margin:0 auto;width:100%}
+.search small{font:600 12px var(--f-display);color:var(--q);text-transform:uppercase;letter-spacing:.06em;margin-left:auto}
+.vid{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:.8rem;align-items:center;border:1.5px solid var(--line);border-radius:14px;padding:.5rem .7rem;background:var(--panel)}
+.thumb{height:40px;border-radius:9px}
+.vt{font-weight:700;font-size:15.5px}
+.vt small{display:block;font:600 11px var(--f-display);color:var(--k);text-transform:uppercase;letter-spacing:.06em}
+.meter{font:600 15px var(--f-display);min-width:5.5rem;text-align:right}
+.blend{display:flex;height:38px;border-radius:12px;overflow:hidden;border:1.5px solid var(--line)}
+.blend span{height:100%}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:14px;color:var(--muted);justify-content:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.qkv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem}
+.qkv .card{border-width:2px}
+.qkv h3 small{display:block;font:600 12px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.hb{display:grid;grid-template-columns:5.5rem minmax(0,1fr) 2.8rem;gap:.5rem;align-items:center;font-size:15px;margin:.25rem 0}
+.floors{display:flex;flex-direction:column-reverse;gap:6px}
+.floor{display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:.45rem .8rem;font-weight:700;background:var(--panel);text-align:left}
+.floor.on{border-color:var(--accent);background:var(--soft)}
+.floor.past{color:var(--muted)}
+.rich{display:flex;gap:4px}
+.rich span{width:22px;height:10px;border-radius:99px;background:var(--line)}
+.rich span.f{background:var(--accent)}
+.itcard{border:2.5px solid var(--q);border-radius:18px;padding:1.2rem;display:flex;flex-direction:column;gap:.8rem}
+.itcard .big{font:600 clamp(1.3rem,3vw,1.7rem)/1.3 var(--f-display)}
+.box{border:2px solid var(--accent);border-radius:14px;padding:.6rem .9rem;font:600 15px var(--f-display);color:var(--accent);background:var(--soft);text-align:center}
+.lane{display:flex;gap:6px;flex-wrap:wrap}
+.rc{width:3.6rem;height:2.6rem;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--cell);border:1.5px solid var(--line);animation:light .3s ease forwards;animation-play-state:running}
+@keyframes light{to{background:var(--accent);color:var(--on);border-color:var(--accent)}}
+.tree{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem}
+.tree .card h3 small{display:block;font:600 12px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.root{align-self:center;background:var(--accent);color:var(--on);border-radius:16px;padding:.7rem 1.4rem;font:600 20px var(--f-display);text-align:center}
+.cheat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.7rem}
+.cheat div{border:1.5px solid var(--line);border-radius:14px;padding:.7rem .9rem;font-size:15.5px}
+.cheat b{display:block;font:600 16px var(--f-display);color:var(--accent)}
+.pitch{border-left:4px solid var(--accent);border-radius:0;padding:.4rem 0 .4rem 1rem;font-size:17px;margin:0}
+.cta{display:inline-block;font:600 16px var(--f-display);color:var(--accent);text-decoration:none;border:2px solid var(--accent);border-radius:12px;padding:.6rem 1rem}
+.cta:hover{background:var(--soft)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.bignum{font:600 2.4rem/1 var(--f-display)}
+@media (prefers-reduced-motion:reduce){.viz>*{animation:none}.rc{animation-duration:0s!important;animation-delay:0s!important}svg animate,svg animateTransform{display:none}.pulse{animation:none!important}}
+.pulse{animation:pulse 1.6s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.15}to{opacity:.8}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><b>Transformers From Zero</b><span>The 2017 paper “Attention Is All You Need”, explained with pictures</span></div>
+  <nav class="prog" id="prog" aria-label="Scenes"></nav>
+  <section class="scene" aria-live="polite">
+    <span class="kick" id="kick"></span>
+    <h1 id="title"></h1>
+    <p class="say" id="say"></p>
+    <div id="termbox"></div>
+    <div class="viz" id="viz"></div>
+    <div class="nav">
+      <button id="back" type="button">Back</button>
+      <span class="stepnote" id="stepnote"></span>
+      <button id="next" type="button" class="go">Next</button>
+    </div>
+    <details class="peek" id="peekbox"><summary>Peek at the real version</summary><p id="peek"></p></details>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const st={sc:0,sub:0,word:'cat',near:'cat',end:'tired',practice:10};
+
+/* ---------- small helpers ---------- */
+function rngf(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const vcol=v=>`color-mix(in oklab, ${v>=0?'var(--accent)':'var(--q)'} ${Math.round(Math.min(1,Math.abs(v))*85)}%, var(--cell))`;
+const strip=vals=>`<div class="strip">${vals.map(v=>`<span style="background:${vcol(v)}"></span>`).join('')}</div>`;
+const seat=p=>Array.from({length:16},(_,j)=>{const i=Math.floor(j/2),a=p/Math.pow(30,2*i/16);return j%2?Math.cos(a):Math.sin(a)});
+const embed=w=>{let s=0;for(const c of w)s=s*31+c.charCodeAt(0);const r=rngf(s);return Array.from({length:16},()=>r()*2-1)};
+const bars=(rows,hue)=>rows.map(([l,v])=>`<div class="hb"><span>${l}</span><div class="track"><div class="fill" style="width:${v*100}%;background:${hue}"></div></div><span class="num">${Math.round(v*100)}%</span></div>`).join('');
+
+/* ---------- scene 1 pictures ---------- */
+function noteLine(){const xs=[60,164,268,372,476,580],ws=['The','animal','didn\'t','cross','…','it'];
+  let s=`<svg class="svgbox" viewBox="0 0 640 200" role="img" aria-label="Six people in a line passing a note that fades">`;
+  s+=`<line x1="60" y1="90" x2="580" y2="90" style="stroke:var(--line);stroke-width:3;stroke-dasharray:6 6"/>`;
+  xs.forEach((x,i)=>{s+=`<circle cx="${x}" cy="90" r="24" style="fill:var(--soft);stroke:var(--accent);stroke-width:2"/><circle cx="${x-8}" cy="85" r="3" style="fill:var(--ink)"/><circle cx="${x+8}" cy="85" r="3" style="fill:var(--ink)"/><path d="M${x-8} 98 Q${x} 104 ${x+8} 98" style="fill:none;stroke:var(--ink);stroke-width:2"/><text x="${x}" y="146" text-anchor="middle" style="fill:var(--ink);font:700 16px var(--f-body)">${ws[i]}</text>`});
+  s+=`<g><animateTransform attributeName="transform" type="translate" values="22 22;542 22" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.12" dur="5s" repeatCount="indefinite"/><rect x="0" y="0" width="76" height="26" rx="6" style="fill:var(--v)"/><text x="38" y="18" text-anchor="middle" style="fill:#1d1b3a;font:700 12px var(--f-body)">animal?</text></g>`;
+  return s+`<text x="320" y="186" text-anchor="middle" style="fill:var(--muted);font:14px var(--f-body)">The note is rewritten at every step, so by the end “animal” has nearly faded.</text></svg>`}
+function circleAll(){const ws=['The','animal','didn\'t','cross','…','it'],cx=320,cy=105,R=78;const P=ws.map((_,i)=>{const a=-Math.PI/2+i*2*Math.PI/6;return[cx+R*1.7*Math.cos(a),cy+R*Math.sin(a)]});
+  let s=`<svg class="svgbox" viewBox="0 0 640 220" role="img" aria-label="Six words all connected to each other">`;let k=0;
+  for(let i=0;i<6;i++)for(let j=i+1;j<6;j++)s+=`<line class="pulse" x1="${P[i][0]}" y1="${P[i][1]}" x2="${P[j][0]}" y2="${P[j][1]}" style="stroke:var(--accent);stroke-width:2.5;animation-delay:${(k++)*0.1}s"/>`;
+  P.forEach(([x,y],i)=>s+=`<rect x="${x-44}" y="${y-17}" width="88" height="34" rx="10" style="fill:var(--panel);stroke:var(--accent);stroke-width:2"/><text x="${x}" y="${y+6}" text-anchor="middle" style="fill:var(--ink);font:700 16px var(--f-body)">${ws[i]}</text>`);
+  return s+`</svg>`}
+
+/* ---------- scene 4 beams ---------- */
+const SENT=['The','animal','didn\'t','cross','the','street','because','it','was','too','tired'];
+const ATT={tired:[.02,.52,.03,.05,.02,.08,.03,.08,.02,.01,.14],wide:[.02,.09,.02,.05,.02,.54,.02,.08,.01,.01,.14]};
+function sentHTML(end,hotIdx){const w=SENT.slice(0,10).concat([end]);return`<div class="beamwrap" id="beams"><svg aria-hidden="true"></svg><div class="sent">${w.map((x,i)=>`<span class="wd${i===7?' it':''}${i===hotIdx?' tgt':''}">${x}</span>`).join('')}<span class="wd" style="background:none;padding:0">.</span></div></div>`}
+function drawBeams(weights,bubble){const wrap=$('beams');if(!wrap)return;const svg=wrap.querySelector('svg');const words=[...wrap.querySelectorAll('.wd')];const R=wrap.getBoundingClientRect();
+  svg.setAttribute('viewBox',`0 0 ${R.width} ${R.height}`);const f=words[7].getBoundingClientRect();const fx=f.left+f.width/2-R.left,fy=f.top-R.top;let s='';
+  if(bubble){s+=`<rect x="${fx-95}" y="${fy-78}" width="190" height="52" rx="16" style="fill:var(--q)"/><path d="M${fx-10} ${fy-27} L${fx} ${fy-6} L${fx+10} ${fy-27}Z" style="fill:var(--q)"/><text x="${fx}" y="${fy-45}" text-anchor="middle" style="fill:#fff;font:600 19px var(--f-display)">Who is “it”?</text>`}
+  else weights.forEach((w,i)=>{if(i===7)return;const t=words[i].getBoundingClientRect();const tx=t.left+t.width/2-R.left,ty=t.top-R.top;const cy=Math.max(6,Math.min(fy,ty)-30-Math.abs(tx-fx)*.28);
+    s+=`<path d="M${fx} ${fy} Q${(fx+tx)/2} ${cy} ${tx} ${ty}" style="fill:none;stroke:var(--q);stroke-width:${(1.2+w*17).toFixed(1)};stroke-linecap:round;opacity:${Math.min(1,.18+w*1.6).toFixed(2)}"/>`;
+    if(w>=.05)s+=`<text x="${tx}" y="${ty-7}" text-anchor="middle" style="fill:var(--ink);font:800 14px var(--f-body);paint-order:stroke;stroke:var(--panel);stroke-width:4">${Math.round(w*100)}%</text>`});
+  svg.innerHTML=s}
+
+/* ---------- scenes ---------- */
+const MAPW={cat:[20,62],kitten:[13,74],dog:[30,68],puppy:[24,82],elephant:[36,48],street:[78,34],road:[87,26],city:[71,20],tired:[58,78],sleepy:[66,88],happy:[50,90],king:[82,68],queen:[90,58]};
+const FEAT={cat:[.95,.2,.3,0],kitten:[.95,.05,.45,0],elephant:[.95,.98,.25,0],street:[0,.6,0,.95],tired:[.4,.05,.9,0]};
+const FNAMES=['living thing','big','feeling','place'];
+const VOC=['i','am','a','student','the','is','an','teacher','END'];
+const PROB=[[.71,.04,.06,.03,.08,.03,.02,.01,.02],[.03,.78,.04,.02,.02,.07,.02,.01,.01],[.02,.02,.66,.05,.12,.02,.09,.01,.01],[.02,.02,.03,.74,.03,.02,.02,.09,.03],[.01,.01,.02,.03,.02,.01,.01,.01,.88]];
+const LOOK=[0,1,2,2,-1],EN=['i','am','a','student','END'],FR=['je','suis','étudiant'];
+const U0=(()=>{const r=rngf(91);const l=VOC.map(()=>r()*1.4);const m=Math.max(...l);const e=l.map(v=>Math.exp(v-m));const z=e.reduce((a,b)=>a+b,0);return e.map(v=>v/z)})();
+const FLOOR=['“it” is a word: a pronoun, the eighth word in the sentence.','“it” points back to something mentioned earlier.','“it” is probably the animal, not the street.','“it” is the animal, and the animal is tired.','“it” is the tired animal that did not cross.','“it” is the tired animal, which is the reason it didn\'t cross the street.'];
+
+const SC=[
+{t:'Why was translating hard for computers?',subs:2,
+ say:['Older translators read a sentence one word at a time, like people passing a note down a line. Each person rewrites the note from memory, so by the end the first words have faded.',
+      'The Transformer, from the 2017 paper “Attention Is All You Need”, lets every word talk to every other word directly, all at the same time. Nothing has to survive a long chain of copies.'],
+ term:[null,['Transformer','The model from this paper. It is the T in ChatGPT.']],
+ viz:s=>s===0?noteLine():circleAll(),
+ peek:'The older models were recurrent neural networks (RNNs and LSTMs). They process word t only after word t−1, so they cannot run in parallel, and information from early words has to pass through every step in between to reach later ones.'},
+{t:'How does a computer read a word?',subs:2,
+ say:['Computers only work with numbers, so every word gets its own list of numbers, like a character card. The model learns these numbers by reading huge amounts of text. Pick a word to see its card.',
+      'Words with similar meanings end up with similar numbers. Plot them and they land near each other. Click any word to light up its closest neighbours.'],
+ term:[['Embedding','A word\'s list of numbers.'],['Embedding','A word\'s list of numbers.']],
+ viz:s=>{if(s===0){const f=FEAT[st.word];return`<div class="row center">${Object.keys(FEAT).map(w=>`<button class="pick${w===st.word?' on':''}" type="button" data-word="${w}">${w}</button>`).join('')}</div>
+   <div class="card" style="max-width:460px;margin:0 auto;width:100%"><h3>Card for “${st.word}”</h3>${f.map((v,i)=>`<div class="feat"><span>${FNAMES[i]}</span><div class="track"><div class="fill" style="width:${v*100}%"></div></div><span class="num">${v.toFixed(2)}</span></div>`).join('')}</div>
+   <p class="cap">A real model uses 512 numbers per word, and they don't come with names.</p>`}
+  const [ax,ay]=MAPW[st.near];const d=Object.entries(MAPW).filter(([w])=>w!==st.near).map(([w,[x,y]])=>[w,Math.hypot(x-ax,y-ay)]).sort((a,b)=>a[1]-b[1]).slice(0,3).map(x=>x[0]);
+  return`<div class="map">${Object.entries(MAPW).map(([w,[x,y]])=>`<button type="button" class="dot${w===st.near?' on':d.includes(w)?' near':''}" data-near="${w}" style="left:${x}%;top:${y}%">${w}</button>`).join('')}</div><p class="cap">Closest to “${st.near}”: ${d.join(', ')}</p>`},
+ peek:'The names on the card (living thing, big, feeling, place) are made up to make the idea concrete. Real embeddings have 512 unnamed numbers, and meaning is spread across many of them at once. The map squeezes those 512 numbers into 2 so you can see them.'},
+{t:'Why does word order need help?',subs:2,
+ say:['“Dog bites man” and “man bites dog” use the same three words but mean very different things. Attention on its own looks at words like a bag of items, so it can\'t tell these two apart.',
+      'The fix is to give every word a seat number, written as a pattern of waves, and add it to the word\'s card. Now “dog” in seat 1 has a different card from “dog” in seat 3.'],
+ term:[null,['Positional encoding','The seat pattern added to each word so order matters.']],
+ viz:s=>{if(s===0)return`<div class="grid2" style="align-items:center"><div style="display:flex;flex-direction:column;gap:.8rem;align-items:center"><div class="row"><span class="pill">dog</span><span class="pill">bites</span><span class="pill">man</span></div><div class="row"><span class="pill">man</span><span class="pill">bites</span><span class="pill">dog</span></div></div><div class="bag"><div class="row center"><span class="pill">bites</span><span class="pill">dog</span><span class="pill">man</span></div><p class="cap" style="margin-top:.6rem">Both sentences give the same bag of words</p></div></div>`;
+  const dg=embed('dog');const mix=p=>dg.map((v,i)=>Math.max(-1,Math.min(1,v*.7+seat(p)[i]*.5)));
+  const line=p=>`<div class="row" style="gap:.8rem"><span class="pill" style="min-width:5.5rem;text-align:center">seat ${p}</span>${strip(dg)}<span class="arrowtxt">+</span>${strip(seat(p))}<span class="arrowtxt">=</span>${strip(mix(p))}</div>`;
+  return`<div style="display:flex;flex-direction:column;gap:1rem;align-items:flex-start;overflow-x:auto"><div class="row" style="gap:.8rem;font-size:14px;color:var(--muted)"><span style="min-width:5.5rem"></span><span style="width:300px;max-width:30vw">card for “dog”</span><span style="width:300px;max-width:30vw">seat pattern</span><span>new card</span></div>${line(1)}${line(3)}</div><p class="cap">Same word, same card, different seat, so the final cards differ.</p>`},
+ peek:'Each seat pattern is built from sine and cosine waves at many speeds: PE(pos, 2i) = sin(pos / 10000^(2i/512)) and the matching cosine. Fast waves tell neighbours apart, slow waves tell far-apart positions apart. The pattern is simply added to the word\'s embedding.'},
+{t:'What does attention actually do?',subs:3,
+ say:['Read this sentence. What does “it” mean? You know instantly: the animal. A computer has to work that out from the other words.',
+      '“it” looks at every other word and decides how much each one matters. Thicker beams mean more attention. The shares always add up to 100%.',
+      'Now switch the last word. When something is too tired, “it” is the animal. When something is too wide, “it” becomes the street. Same method, different context, different answer.'],
+ term:[null,['Attention','Deciding how much to focus on each other word.'],['Attention','Deciding how much to focus on each other word.']],
+ viz:s=>{const end=s===2?st.end:'tired';const w=ATT[end];const hot=s===0?-1:w.indexOf(Math.max(...w.filter((_,i)=>i!==7)));
+  let h=s===2?`<div class="row center"><span class="stepnote">Last word:</span>${['tired','wide'].map(e=>`<button class="pick${e===st.end?' on':''}" type="button" data-end="${e}">${e}</button>`).join('')}</div>`:'';
+  return h+sentHTML(end,hot)+(s>=1?`<p class="cap">“it” gives ${Math.round(w[hot]*100)}% of its attention to “${SENT.slice(0,10).concat([end])[hot]}”.</p>`:'')},
+ after:s=>drawBeams(ATT[s===2?st.end:'tired'],s===0),
+ peek:'These percentages are illustrative. The paper\'s appendix shows real trained attention heads doing exactly this kind of linking for words like “its”. In the model, the shares come from a softmax over match scores, which the next scene explains.'},
+{t:'How does a word decide where to look?',subs:4,
+ say:['Think of a video search. You type a question. Every video has a title. The site compares your question with each title to see how well they match.',
+      'The match scores are turned into shares of 100%. Strong matches get most of the share and weak ones get almost nothing. This step is called softmax.',
+      'You then get a blend of the videos\' actual content, mixed by those shares: mostly bread baking, almost nothing else.',
+      'Attention works the same way. Each word makes a question, a label and its content. “it” asks its question, compares it with every word\'s label, and takes in a blend of the content of the words that match.'],
+ term:[null,['Softmax','Turns scores into shares that add up to 100%.'],null,['Query, key, value','The question, the label, and the content.']],
+ viz:s=>{const V=[['Easy bread recipe',4.1,'var(--v)'],['Bread baking for beginners',4.4,'color-mix(in oklab,var(--v) 60%,var(--q))'],['Car repair basics',.3,'var(--car)'],['Funny cat videos',.1,'var(--k)']];
+  const e=V.map(v=>Math.exp(v[1])),z=e.reduce((a,b)=>a+b,0),sh=e.map(x=>x/z);
+  if(s===3)return`<div class="qkv"><div class="card" style="border-color:var(--q)"><h3><small>Query</small>The question</h3><p style="margin:0">Search: “how to bake bread”.<br><br>In the sentence, “it” asks: <b>which noun could get tired?</b></p></div><div class="card" style="border-color:var(--k)"><h3><small>Key</small>The label</h3><p style="margin:0">Each video\'s title.<br><br>“animal” is labelled: <b>a living thing, a noun</b>. “street”: <b>a place</b>.</p></div><div class="card" style="border-color:var(--v)"><h3><small>Value</small>The content</h3><p style="margin:0">What you actually watch.<br><br>“animal” hands over <b>its meaning</b>, which flows into “it”.</p></div></div>`;
+  let h=`<div class="search">how to bake bread<small>question</small></div><div style="display:flex;flex-direction:column;gap:.5rem">`;
+  V.forEach((v,i)=>{h+=`<div class="vid"><div class="thumb" style="background:${v[2]}"></div><div class="vt"><small>label</small>${v[0]}</div><span class="meter">${s===0?'match '+v[1].toFixed(1):Math.round(sh[i]*100)+'%'}</span></div>`});
+  h+='</div>';
+  if(s===2)h+=`<div><p class="cap" style="margin-bottom:.4rem">What you get: a blend of content by share</p><div class="blend">${V.map((v,i)=>`<span style="width:${sh[i]*100}%;background:${v[2]}"></span>`).join('')}</div><div class="legend" style="margin-top:.5rem">${V.map((v,i)=>`<span><i style="background:${v[2]}"></i>${Math.round(sh[i]*100)}%</span>`).join('')}</div></div>`;
+  return h},
+ peek:'In the paper this is Attention(Q, K, V) = softmax(QKᵀ / √dₖ)·V. Q, K and V are made by multiplying each word\'s card by three learned matrices. Dividing by √dₖ (√64 = 8) keeps the match scores from growing too large; if they did, softmax would hand 100% to one word and the model would stop learning.'},
+{t:'Why ask several questions at once?',subs:1,
+ say:['One question is not enough to understand a word. The model runs several attention “heads” side by side, each asking its own question and looking at different words. Here are three heads working on “it”.'],
+ term:[['Head','One attention question. The paper uses 8 heads in each layer.']],
+ viz:()=>{const H=[['Who is “it”?','var(--q)',[['animal',.62],['street',.09],['it',.08]]],['How is “it” feeling?','var(--k)',[['tired',.58],['was',.12],['too',.10]]],['What did “it” do?','var(--v)',[['cross',.49],['didn\'t',.21],['street',.08]]]];
+  return`<div class="row center"><span class="wd it" style="font-size:20px">it</span></div><div class="grid3">${H.map(([q,c,r],i)=>`<div class="card" style="border-color:${c}"><h3>Head ${i+1}: ${q}</h3>${bars(r,c)}</div>`).join('')}</div><p class="cap">The three answers are combined into one richer card for “it”.</p>`},
+ peek:'Each head has its own query, key and value matrices and works with 64 numbers instead of 512, so 8 heads cost about the same as one big head. Their outputs are joined and mixed by one more matrix. In the paper\'s tests, using only 1 head made translations noticeably worse (0.9 BLEU lower). The head questions shown here are illustrative.'},
+{t:'What happens after attention?',subs:7,
+ say:s=>s===0?'After gathering information from other words, each word goes into a small thinking box on its own and updates its card. Then the whole process repeats, layer after layer.':`Layer ${s} of 6. Each layer reads the cards from the layer below and adds more understanding. Here is roughly what “it” has figured out so far.`,
+ term:s=>[['Layer','One round of attention plus thinking. The paper stacks 6.']],
+ viz:s=>{if(s===0)return`<div class="grid3" style="align-items:center">${['animal','street','it'].map(w=>`<div style="display:flex;flex-direction:column;gap:.5rem;align-items:center"><span class="pill${w==='it'?' q':''}">${w}</span><span class="arrowtxt">↓</span><div class="box">thinking box</div><span class="arrowtxt">↓</span><span class="pill${w==='it'?' q':''}" style="box-shadow:0 0 0 4px var(--soft)">${w}, updated</span></div>`).join('')}</div><p class="cap">Every word uses the same thinking box, but each goes through it separately.</p>`;
+  return`<div class="grid2" style="align-items:center"><div class="floors">${[1,2,3,4,5,6].map(n=>`<button type="button" class="floor${n===s?' on':n<s?' past':''}" data-floor="${n}"><span>Layer ${n}</span><span class="rich">${[1,2,3,4,5,6].map(k=>`<span class="${k<=n?'f':''}"></span>`).join('')}</span></button>`).join('')}</div>
+   <div class="itcard"><span class="kick">What “it” knows after layer ${s}</span><span class="big">${FLOOR[s-1]}</span><div class="rich">${[1,2,3,4,5,6].map(k=>`<span class="${k<=s?'f':''}" style="width:36px;height:12px"></span>`).join('')}</div></div></div>`},
+ peek:'The thinking box is a feed-forward network that expands each card from 512 to 2048 numbers and back. Around every part there is a shortcut that adds the input back in (a residual connection) and a normalization step that keeps numbers in range. The sentences on each layer are an illustration; real layers store this understanding as numbers, not words.'},
+{t:'How does it write the translation?',subs:6,
+ say:s=>{if(s===0)return'The first half, the encoder, has turned “je suis étudiant” into rich cards. The second half, the decoder, writes English one word at a time. It is not allowed to peek at words it hasn\'t written yet.';
+  const P=PROB[s-1],w=VOC[P.indexOf(Math.max(...P))],p=Math.round(Math.max(...P)*100);
+  return s===5?`The END marker wins with ${p}%, so it stops. The translation is finished: “i am a student”.`:`It looks back at “${FR[LOOK[s-1]]}” and scores every word it knows. “${w}” wins with ${p}%, so it writes “${w}” and moves to the next slot.`},
+ term:[['Decoder','The part that writes the output, one word at a time.']],
+ viz:s=>{let h=`<div class="card"><h3>French, already read</h3><div class="row">${FR.map((w,i)=>`<span class="pill fr${s>0&&LOOK[s-1]===i?' hot':''}">${w}</span>`).join('')}</div></div>`;
+  h+=`<div class="card"><h3>English, being written</h3><div class="row">${EN.map((w,i)=>i<s-1?`<span class="pill">${w}</span>`:i===s-1?`<span class="pill new">${w}</span>`:`<span class="pill ghost">?</span>`).join('')}</div>${s<5?'<p class="cap" style="text-align:left;margin-top:.5rem">Grey slots are hidden: no peeking at the answer.</p>':''}</div>`;
+  if(s>0){const P=PROB[s-1].map((p,i)=>[VOC[i],p]).sort((a,b)=>b[1]-a[1]).slice(0,4);h+=`<div class="card"><h3>Its top guesses for this slot</h3>${bars(P,'var(--accent)')}</div>`}
+  return h},
+ peek:'The decoder has 6 layers like the encoder, plus cross-attention, where the decoder\'s questions look at the encoder\'s labels and content. Future words are hidden with a mask: their scores are set to minus infinity before softmax, so their share is exactly zero. The paper used beam search, keeping the 4 best partial sentences instead of only the top word. The percentages here are illustrative.'},
+{t:'How does it learn?',subs:2,
+ say:['At first all the numbers are random, so the guesses are random. After each guess the model compares it with the right answer and nudges all its numbers a tiny bit to be less wrong. Drag the slider to give it more practice.',
+      'After 12 hours of practice on 8 graphics chips, reading 4.5 million English–German sentence pairs, the smaller model already translated better than every earlier system, at a fraction of the cost.'],
+ term:[['Training','Guess, measure the mistake, adjust the numbers, repeat.'],['BLEU','A translation quality score that compares output with human translations.']],
+ viz:s=>{if(s===0)return`<div class="card"><h3>After “i”, which word comes next? (right answer: “am”)</h3><label for="prac" class="stepnote" style="display:flex;justify-content:space-between"><span>Practice</span><span id="pracv"></span></label><input type="range" id="prac" min="0" max="100" step="1" value="${st.practice}"><div id="pracbox" style="margin-top:.8rem"></div></div>`;
+  const Q=[['Best earlier system',26.4,100],['Transformer, small',27.3,4],['Transformer, big',28.4,30]];
+  return`<div class="grid2"><div class="card"><h3>Translation quality (BLEU, higher is better)</h3>${Q.map(([l,v])=>`<div class="feat" style="grid-template-columns:9.5rem minmax(0,1fr) 2.8rem"><span>${l}</span><div class="track"><div class="fill" style="width:${v/30*100}%"></div></div><span class="num">${v}</span></div>`).join('')}<p class="cap" style="text-align:left">English → German test, scale 0 to 30.</p></div>
+   <div class="card"><h3>Training cost (earlier best = 100)</h3>${Q.map(([l,,c])=>`<div class="feat" style="grid-template-columns:9.5rem minmax(0,1fr) 2.8rem"><span>${l}</span><div class="track"><div class="fill" style="width:${c}%;background:var(--k)"></div></div><span class="num">${c}</span></div>`).join('')}<p class="cap" style="text-align:left">Lower is cheaper.</p></div></div>`},
+ after:s=>{if(s===0)fillPractice()},
+ peek:'The mistake is measured with cross-entropy loss, and the numbers are adjusted with backpropagation and the Adam optimizer. The learning rate warms up for 4,000 steps, then slowly decreases. The earlier best was an ensemble of ConvS2S models (26.36 BLEU, 7.7×10¹⁹ operations to train); the big Transformer reached 28.4 BLEU with 2.3×10¹⁹. The guesses in the slider are illustrative.'},
+{t:'Why did this paper change everything?',subs:2,
+ say:['Because every word is handled at the same moment, the Transformer uses modern chips far better than one-word-at-a-time models. Watch the race.',
+      'That speed made it practical to train much bigger models on much more text. Almost every modern AI system descends from this one design.'],
+ term:[null,null],
+ viz:s=>{if(s===0){const W=['le','chat','dort','sur','le','tapis','ce','soir'];return`<div class="card"><h3>Old way: one word at a time (8 steps)</h3><div class="lane">${W.map((w,i)=>`<span class="rc" style="animation-delay:${.4+i*.55}s;animation-fill-mode:both">${w}</span>`).join('')}</div></div>
+   <div class="card"><h3>Transformer: all at once (1 step)</h3><div class="lane">${W.map(w=>`<span class="rc" style="animation-delay:.4s;animation-fill-mode:both">${w}</span>`).join('')}</div></div><div class="row center"><button type="button" data-replay="1">Run the race again</button></div>`}
+  return`<div class="root">Transformer, 2017</div><div class="tree">
+   <div class="card"><h3><small>Reading half only</small>BERT, 2018</h3>Helps search engines understand what you mean.</div>
+   <div class="card"><h3><small>Writing half only</small>GPT family</h3>Leads to chat assistants like ChatGPT, Claude and Gemini.</div>
+   <div class="card"><h3><small>Both halves</small>T5 and translators</h3>Modern translation and summarizing tools.</div>
+   <div class="card"><h3><small>Beyond words</small>Images, speech, proteins</h3>Vision Transformers, speech models, and AlphaFold 2 all use attention.</div></div>`},
+ peek:'A self-attention layer needs 1 step no matter how long the sentence is, while a recurrent layer needs one step per word. The trade-off is that every word compares itself with every other word, so the work grows with the square of the sentence length. That is why very long documents are expensive and why a lot of later research tries to make attention cheaper.'},
+{t:'You now know the Transformer',subs:1,
+ say:['Here is everything on one page. If you can explain these eight ideas in your own words, you understand the core of the paper.'],
+ term:[null],
+ viz:()=>`<div class="cheat">
+  <div><b>Embedding</b>Every word becomes a list of numbers.</div>
+  <div><b>Positional encoding</b>A wave-pattern seat number, so word order counts.</div>
+  <div><b>Attention</b>Each word decides which other words to focus on.</div>
+  <div><b>Query, key, value</b>The question, the label, and the content.</div>
+  <div><b>Multi-head</b>Several questions asked at the same time.</div>
+  <div><b>Layers</b>Attention plus thinking, repeated 6 times.</div>
+  <div><b>Decoder</b>Writes one word at a time, with no peeking.</div>
+  <div><b>Training</b>Guess, measure the mistake, adjust, millions of times.</div></div>
+  <div class="card"><h3>Say this to a Google researcher</h3><p class="pitch">The Transformer replaced step-by-step recurrent networks with self-attention, where every word computes how relevant every other word is, in one parallel step. It adds positional encodings for word order, runs several attention heads at once, and stacks six layers in an encoder and a decoder. That made training much faster, set new translation records, and became the foundation for BERT, GPT and today's large language models.</p></div>
+  <div class="row center"><a class="cta" href="attention-engine.html">Ready for the math? Open the deep-dive simulation</a></div>`,
+ peek:'Paper: Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser and Polosukhin, “Attention Is All You Need”, NeurIPS 2017, arXiv:1706.03762. Base model: 6 layers, 512 numbers per word, 8 heads, about 65 million learned numbers.'}
+];
+
+function fillPractice(){const a=st.practice/100;const lp=U0.map((u,i)=>(1-a)*Math.log(u)+a*Math.log(PROB[1][i]));const m=Math.max(...lp);const e=lp.map(v=>Math.exp(v-m));const z=e.reduce((x,y)=>x+y,0);const P=e.map(v=>v/z);
+  const loss=-Math.log(P[1]);const top=P.map((p,i)=>[VOC[i],p,i]).sort((x,y)=>y[1]-x[1]).slice(0,5);
+  $('pracv').textContent=a===0?'none yet':a===1?'fully trained':`about ${(Math.round(a*a*45)/10).toLocaleString()} million sentences`;
+  $('pracbox').innerHTML=`<div class="grid2" style="align-items:center"><div>${top.map(([w,p,i])=>`<div class="hb"><span style="${i===1?'color:var(--k);font-weight:800':''}">${w}${i===1?' ✓':''}</span><div class="track"><div class="fill" style="width:${p*100}%;background:${i===1?'var(--k)':'var(--accent)'}"></div></div><span class="num">${Math.round(p*100)}%</span></div>`).join('')}</div>
+   <div style="text-align:center"><div class="stepnote">Mistake score</div><div class="bignum">${loss.toFixed(2)}</div><div class="stepnote">${loss<.4?'Confident and right':loss<1.5?'Getting there':'Mostly guessing'}</div></div></div>`}
+
+/* ---------- render ---------- */
+function render(){const S=SC[st.sc],s=st.sub;
+  $('prog').innerHTML=SC.map((x,i)=>`<button type="button" title="${i+1}. ${x.t}" aria-label="Scene ${i+1}: ${x.t}" class="${i===st.sc?'on':i<st.sc?'done':''}" data-scene="${i}"></button>`).join('');
+  $('kick').textContent=`Scene ${st.sc+1} of ${SC.length}`;
+  $('title').textContent=S.t;
+  $('say').textContent=typeof S.say==='function'?S.say(s):S.say[Math.min(s,S.say.length-1)];
+  const tm=typeof S.term==='function'?S.term(s)[0]:S.term[Math.min(s,S.term.length-1)];
+  $('termbox').innerHTML=tm?`<div class="term"><b>New word</b><span><strong>${tm[0]}</strong>: ${tm[1]}</span></div>`:'';
+  $('viz').innerHTML=S.viz(s);
+  $('peek').textContent=S.peek;
+  $('stepnote').textContent=S.subs>1?`Step ${s+1} of ${S.subs}`:'';
+  $('back').disabled=st.sc===0&&s===0;
+  const last=st.sc===SC.length-1&&s===S.subs-1;$('next').textContent=last?'Start over':(s===S.subs-1?'Next scene':'Next');
+  if(S.after)requestAnimationFrame(()=>S.after(s));
+}
+function move(d){const S=SC[st.sc];
+  if(d>0){if(st.sub<S.subs-1)st.sub++;else if(st.sc<SC.length-1){st.sc++;st.sub=0}else{st.sc=0;st.sub=0}}
+  else{if(st.sub>0)st.sub--;else if(st.sc>0){st.sc--;st.sub=SC[st.sc].subs-1}}
+  render();$('title').scrollIntoView({block:'nearest',behavior:'smooth'})}
+$('next').onclick=()=>move(1);$('back').onclick=()=>move(-1);
+document.addEventListener('click',e=>{const t=e.target.closest('[data-scene],[data-word],[data-near],[data-end],[data-floor],[data-replay]');if(!t)return;const d=t.dataset;
+  if(d.scene!=null){st.sc=+d.scene;st.sub=0}else if(d.word)st.word=d.word;else if(d.near)st.near=d.near;else if(d.end)st.end=d.end;else if(d.floor)st.sub=+d.floor;
+  render()});
+document.addEventListener('input',e=>{if(e.target.id==='prac'){st.practice=+e.target.value;fillPractice()}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input'))return;if(e.key==='ArrowRight')move(1);if(e.key==='ArrowLeft')move(-1)});
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{const S=SC[st.sc];if(S.after)S.after(st.sub)},120)});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{const S=SC[st.sc];if(S.after)S.after(st.sub)});
+render();
+</script>
+
+</body>
+</html>
